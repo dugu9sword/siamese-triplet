@@ -65,6 +65,8 @@ def train_epoch(train_loader, model, loss_fn, optimizer, cuda, log_interval, met
         if target is not None:
             target = (target,)
             loss_inputs += target
+            
+#         print(loss_inputs[0][0])
 
         loss_outputs = loss_fn(*loss_inputs)
         loss = loss_outputs[0] if type(loss_outputs) in (tuple, list) else loss_outputs
@@ -84,6 +86,7 @@ def train_epoch(train_loader, model, loss_fn, optimizer, cuda, log_interval, met
                 message += '\t{}: {}'.format(metric.name(), metric.value())
 
             print(message)
+#             print(loss_outputs)
             losses = []
 
     total_loss /= (batch_idx + 1)
