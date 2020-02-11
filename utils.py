@@ -130,6 +130,11 @@ def semihard_negative(loss_values, margin):
     return np.random.choice(semihard_negatives) if len(semihard_negatives) > 0 else None
 
 
+def set_grad(module, val):
+    for p in module.parameters():
+        p.requires_grad = val
+        
+
 class FunctionNegativeTripletSelector(TripletSelector):
     """
     For each positive pair, takes the hardest negative sample (with the greatest triplet loss value) to create a triplet
