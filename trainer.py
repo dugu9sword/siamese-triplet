@@ -1,6 +1,6 @@
 import torch
 import numpy as np
-
+from utils import set_grad
 
 def fit(train_loader, val_loader, model, loss_fn, optimizer, scheduler, n_epochs, cuda, log_interval, metrics=[],
         start_epoch=0):
@@ -22,7 +22,8 @@ def fit(train_loader, val_loader, model, loss_fn, optimizer, scheduler, n_epochs
         # Train stage
         train_loss, metrics = train_epoch(train_loader, model, loss_fn, optimizer, cuda, log_interval, metrics)
         
-        scheduler.step()
+        if scheduler:
+            scheduler.step()
         
         message = 'Epoch: {}/{}. Train set: Average loss: {:.4f}'.format(epoch + 1, n_epochs, train_loss)
         for metric in metrics:
@@ -127,3 +128,46 @@ def test_epoch(val_loader, model, loss_fn, cuda, metrics):
                 metric(outputs, target, loss_outputs)
 
     return val_loss, metrics
+
+
+def fgsm_attack(epsilon, val_loader, model,  loss_fn, cuda, metrics):
+    set_grad(model, True)
+    for metric in metrics:
+        metric.reset()
+    model.eval()
+    val_loss = 0
+    
+#     adv_datas = []
+    adv_reprs = []
+    
+    for batch_idx, (data, target) in enumerate(val_loader):
+        if cuda:
+            data = data.cuda()
+            target = target.cuda()
+        
+        model.zero_grad()
+        # original
+        data.requires_grad = True
+        outputs = model(data)
+        loss_outputs = loss_fn(outputs, target)
+        loss_outputs.backward()
+        
+        adv_data = data + epsilon * data.grad.sign()
+#         adv_datas.append(adv_data.detach().cpu().numpy())
+        adv_data = torch.clamp(adv_data, 0., 1.)
+        outputs = model(adv_data)
+        
+        adv_repr = model.embedding_net.get_embedding(adv_data)
+        adv_reprs.append(adv_repr.detach().cpu().numpy())
+        
+        loss_outputs = loss_fn(outputs, target)
+        # ---
+
+        val_loss += loss_outputs.item()
+        
+
+        for metric in metrics:
+            metric((outputs, ), (target, ), (loss_outputs, ))
+    
+    adv_reprs = np.concatenate(adv_reprs)
+    return adv_reprs, metrics
